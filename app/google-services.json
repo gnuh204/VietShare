@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "147608926625",
+    "project_id": "vietshare-22e18",
+    "storage_bucket": "vietshare-22e18.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:147608926625:android:81f274f7be3c1279a333e0",
+        "android_client_info": {
+          "package_name": "com.example.vietshare"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDMRJL6oz970esRw9RMj7fQ9hk4mQcxFzA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
