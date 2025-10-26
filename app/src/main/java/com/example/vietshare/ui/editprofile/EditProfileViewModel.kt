@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// UI State for the Edit Profile screen
 data class EditProfileUiState(
     val isLoading: Boolean = false,
     val user: User? = null,
@@ -33,7 +32,6 @@ class EditProfileViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(EditProfileUiState(isLoading = true))
     val uiState: StateFlow<EditProfileUiState> = _uiState
 
-    // States for the input fields
     var displayName by mutableStateOf("")
     var bio by mutableStateOf("")
     var selectedImageUri by mutableStateOf<Uri?>(null)
@@ -67,15 +65,14 @@ class EditProfileViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 var newImageUrl = currentUser.profileImageUrl
-                // 1. Upload new image if selected
                 selectedImageUri?.let {
                     val uploadResult = userRepository.uploadProfileImage(currentUser.userId, it)
                     newImageUrl = uploadResult.getOrThrow()
                 }
 
-                // 2. Update user document in Firestore
                 val updatedUser = currentUser.copy(
                     displayName = displayName,
+                    displayNameLower = displayName.lowercase(), // Add this
                     bio = bio,
                     profileImageUrl = newImageUrl
                 )

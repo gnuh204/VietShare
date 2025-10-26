@@ -1,5 +1,6 @@
 package com.example.vietshare.ui.postdetail
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,7 +30,8 @@ import java.util.Locale
 @Composable
 fun PostDetailScreen(
     viewModel: PostDetailViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToProfile: (String) -> Unit // Add this missing parameter
 ) {
     val postDetailState by viewModel.postDetailState.collectAsState()
 
@@ -67,7 +69,7 @@ fun PostDetailScreen(
                             PostItem(
                                 item = state.post,
                                 currentUserId = viewModel.currentUserId,
-                                onUsernameClick = {},
+                                onUsernameClick = { onNavigateToProfile(state.post.user.userId) }, // Make post owner clickable
                                 onCommentClick = {},
                                 onLikeClick = { viewModel.toggleLike() },
                                 onDeleteClick = { viewModel.deletePost() }
@@ -88,7 +90,10 @@ fun PostDetailScreen(
                             }
                         } else {
                             items(state.comments, key = { it.comment.commentId }) {
-                                CommentItem(item = it)
+                                CommentItem(
+                                    item = it,
+                                    onUserClick = { onNavigateToProfile(it.user.userId) } // Pass the action
+                                )
                                 Divider(modifier = Modifier.padding(horizontal = 16.dp))
                             }
                         }
@@ -103,10 +108,14 @@ fun PostDetailScreen(
 }
 
 @Composable
-fun CommentItem(item: CommentWithUser) {
+fun CommentItem(
+    item: CommentWithUser,
+    onUserClick: () -> Unit // Add this
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onUserClick) // Make the whole row clickable
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.Top
     ) {

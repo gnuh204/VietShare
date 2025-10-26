@@ -1,5 +1,6 @@
 package com.example.vietshare.ui.findfriends
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,7 +21,10 @@ import com.example.vietshare.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FindFriendsScreen(viewModel: FindFriendsViewModel = hiltViewModel()) {
+fun FindFriendsScreen(
+    viewModel: FindFriendsViewModel = hiltViewModel(),
+    onNavigateToProfile: (String) -> Unit // Add this
+) {
     val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
 
@@ -32,7 +36,6 @@ fun FindFriendsScreen(viewModel: FindFriendsViewModel = hiltViewModel()) {
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Search Bar
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = {
@@ -47,7 +50,6 @@ fun FindFriendsScreen(viewModel: FindFriendsViewModel = hiltViewModel()) {
                 singleLine = true
             )
 
-            // Content
             Box(modifier = Modifier.fillMaxSize()) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -62,7 +64,8 @@ fun FindFriendsScreen(viewModel: FindFriendsViewModel = hiltViewModel()) {
                         items(uiState.searchResults, key = { it.user.userId }) { userWithState ->
                             UserItem(
                                 userWithState = userWithState,
-                                onFollowClick = { viewModel.toggleFollow(userWithState) }
+                                onFollowClick = { viewModel.toggleFollow(userWithState) },
+                                onUserClick = { onNavigateToProfile(userWithState.user.userId) } // Pass the navigation action
                             )
                             Divider()
                         }
@@ -74,36 +77,46 @@ fun FindFriendsScreen(viewModel: FindFriendsViewModel = hiltViewModel()) {
 }
 
 @Composable
-fun UserItem(userWithState: UserWithFollowState, onFollowClick: () -> Unit) {
+fun UserItem(
+    userWithState: UserWithFollowState,
+    onFollowClick: () -> Unit,
+    onUserClick: () -> Unit // Add this
+) {
     val user = userWithState.user
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Avatar
-        AsyncImage(
-            model = user.profileImageUrl.ifEmpty { R.drawable.ic_launcher_background },
-            contentDescription = "User Avatar",
+        Row(
             modifier = Modifier
-                .size(50.dp)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop
-        )
+                .weight(1f)
+                .clickable(onClick = onUserClick), // Make this part clickable
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = user.profileImageUrl.ifEmpty { R.drawable.ic_launcher_background },
+                contentDescription = "User Avatar",
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
 
-        Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
-        // User Info
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = user.displayName.ifEmpty { user.username }, style = MaterialTheme.typography.titleMedium)
-            user.hometown.takeIf { it.isNotEmpty() }?.let {
-                Text(text = it, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Column {
+                Text(text = user.displayName.ifEmpty { user.username }, style = MaterialTheme.typography.titleMedium)
+                user.hometown.takeIf { it.isNotEmpty() }?.let {
+                    Text(text = it, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                }
             }
         }
+
         Spacer(modifier = Modifier.width(16.dp))
 
-        // Follow/Following Button
         if (userWithState.isFollowing) {
             OutlinedButton(onClick = onFollowClick) {
                 Text("Following")

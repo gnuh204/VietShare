@@ -87,7 +87,8 @@ fun AppNavigation() {
             arguments = listOf(navArgument("postId") { type = NavType.StringType })
         ) {
             PostDetailScreen(
-                onNavigateBack = { navController.popBackStack() } // Pass the navigation action
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToProfile = { userId -> navController.navigate(Routes.profile(userId)) }
             )
         }
         composable(Routes.CHAT_LIST) {
@@ -108,7 +109,9 @@ fun AppNavigation() {
             )
         }
         composable(Routes.FIND_FRIENDS) {
-            FindFriendsScreen()
+            FindFriendsScreen(
+                onNavigateToProfile = { userId -> navController.navigate(Routes.profile(userId)) }
+            )
         }
         composable(Routes.EDIT_PROFILE) {
             EditProfileScreen(onNavigateBack = { navController.popBackStack() })

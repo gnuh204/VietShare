@@ -1,5 +1,6 @@
 package com.example.vietshare.ui.chat
 
+import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -20,13 +21,14 @@ import javax.inject.Inject
 @HiltViewModel
 class MessageViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
-    private val userRepository: UserRepository, // Add UserRepository
+    private val userRepository: UserRepository,
     private val sendMessageUseCase: SendMessageUseCase,
     private val authRepository: AuthRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val roomId: String = savedStateHandle.get<String>("roomId")!!
+    val currentUserId: String? = authRepository.getCurrentUserId()
 
     private val _messageState = MutableStateFlow<MessageState>(MessageState.Loading)
     val messageState: StateFlow<MessageState> = _messageState
@@ -34,18 +36,32 @@ class MessageViewModel @Inject constructor(
     private val _otherUserState = MutableStateFlow<User?>(null)
     val otherUserState: StateFlow<User?> = _otherUserState
 
-    val currentUserId: String? = authRepository.getCurrentUserId()
-
     var messageContent by mutableStateOf("")
+        private set
+    
+    var selectedImageUri by mutableStateOf<Uri?>(null)
         private set
 
     init {
         loadMessages()
         loadOtherUserInfo()
+        markAsRead()
+    }
+
+    private fun markAsRead() {
+        if (currentUserId != null) {
+            viewModelScope.launch {
+                chatRepository.markMessagesAsRead(roomId, currentUserId)
+            }
+        }
     }
 
     fun onMessageContentChange(newContent: String) {
         messageContent = newContent
+    }
+
+    fun onImageSelected(uri: Uri?) {
+        selectedImageUri = uri
     }
 
     private fun loadOtherUserInfo() {
@@ -71,15 +87,20 @@ class MessageViewModel @Inject constructor(
     }
 
     fun sendMessage() {
-        if (messageContent.isBlank()) return
+        if (messageContent.isBlank() && selectedImageUri == null) return
 
-        val contentToSend = messageContent
-        messageContent = "" // Clear the input field immediately
+        val contentToSend = messageContent.takeIf { it.isNotBlank() }
+        val imageToSend = selectedImageUri
+
+        // Clear inputs immediately
+        messageContent = ""
+        selectedImageUri = null
 
         viewModelScope.launch {
-            sendMessageUseCase(roomId, contentToSend).onFailure {
-                // If sending fails, restore the content to the input field
-                messageContent = contentToSend
+            sendMessageUseCase(roomId, contentToSend, imageToSend).onFailure {
+                // Restore inputs if sending failed
+                messageContent = contentToSend ?: ""
+                selectedImageUri = imageToSend
             }
         }
     }

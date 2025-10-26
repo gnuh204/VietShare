@@ -4,10 +4,9 @@ import com.google.firebase.Timestamp
 
 data class Message(
     val messageId: String = "",
-    val roomId: String = "", // Add this field
+    val roomId: String = "",
     val senderId: String = "",
-    val content: String = "",
-    val timestamp: Timestamp? = null,
-    val isRead: Map<String, Boolean> = emptyMap(),
-    val messageType: String = "TEXT"
+    val content: String? = null, // Can be null if it's an image message
+    val media: MediaInfo? = null, // Add this for image messages
+    val timestamp: Timestamp? = null
 )

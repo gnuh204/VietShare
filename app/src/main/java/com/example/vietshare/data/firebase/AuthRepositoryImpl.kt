@@ -24,15 +24,15 @@ class AuthRepositoryImpl @Inject constructor(
         Result.failure(e)
     }
 
-    override suspend fun signup(email: String, password: String, username: String): Result<Unit> = try {
+    override suspend fun signup(email: String, password: String, user: User): Result<Unit> = try {
         val authResult = auth.createUserWithEmailAndPassword(email, password).await()
         val userId = authResult.user?.uid
         if (userId != null) {
-            val user = User(userId = userId, username = username, email = email)
-            firestore.collection("Users").document(userId).set(user).await()
+            // Save the complete user object with the new userId
+            firestore.collection("Users").document(userId).set(user.copy(userId = userId)).await()
             Result.success(Unit)
         } else {
-            Result.failure(Exception("User not created"))
+            Result.failure(Exception("User not created in Firebase Auth"))
         }
     } catch (e: Exception) {
         Result.failure(e)

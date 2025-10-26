@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.vietshare.R
+import com.example.vietshare.util.TimestampFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,10 +51,11 @@ fun ChatListScreen(
                         }
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            items(state.chats, key = { it.chat.roomId }) {
+                            items(state.chats, key = { it.chat.roomId }) { item ->
                                 ChatItem(
-                                    item = it,
-                                    onClick = { onNavigateToChat(it.chat.roomId) }
+                                    item = item,
+                                    currentUserId = viewModel.currentUserId,
+                                    onClick = { onNavigateToChat(item.chat.roomId) }
                                 )
                                 Divider()
                             }
@@ -71,7 +73,10 @@ fun ChatListScreen(
 }
 
 @Composable
-fun ChatItem(item: ChatWithUserInfo, onClick: () -> Unit) {
+fun ChatItem(item: ChatWithUserInfo, currentUserId: String?, onClick: () -> Unit) {
+    val unreadCount = item.chat.unreadCount[currentUserId] ?: 0
+    val hasUnread = unreadCount > 0
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -92,17 +97,30 @@ fun ChatItem(item: ChatWithUserInfo, onClick: () -> Unit) {
             Text(
                 text = item.otherUser.displayName.ifEmpty { item.otherUser.username },
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = if (hasUnread) FontWeight.ExtraBold else FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = item.chat.lastMessage,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray,
+                color = if (hasUnread) MaterialTheme.colorScheme.onSurface else Color.Gray,
+                fontWeight = if (hasUnread) FontWeight.Bold else FontWeight.Normal,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
-        // TODO: You can add the timestamp of the last message here
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = TimestampFormatter.formatTimestamp(item.chat.lastMessageTimestamp),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (hasUnread) MaterialTheme.colorScheme.primary else Color.Gray
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            if (hasUnread) {
+                Badge {
+                    Text(unreadCount.toString())
+                }
+            }
+        }
     }
 }

@@ -23,7 +23,7 @@ class FeedViewModel @Inject constructor(
     private val notificationRepository: NotificationRepository,
     private val likePostUseCase: LikePostUseCase,
     private val unlikePostUseCase: UnlikePostUseCase,
-    private val deletePostUseCase: DeletePostUseCase // Add this
+    private val deletePostUseCase: DeletePostUseCase
 ) : ViewModel() {
 
     val currentUserId: String? = authRepository.getCurrentUserId()
@@ -31,8 +31,9 @@ class FeedViewModel @Inject constructor(
     private val _feedState = MutableStateFlow<FeedState>(FeedState.Loading)
     val feedState: StateFlow<FeedState> = _feedState
 
-    private val _hasUnreadNotifications = MutableStateFlow(false)
-    val hasUnreadNotifications: StateFlow<Boolean> = _hasUnreadNotifications
+    // State for the notification badge count
+    private val _unreadNotificationCount = MutableStateFlow(0)
+    val unreadNotificationCount: StateFlow<Int> = _unreadNotificationCount
 
     init {
         loadFeed()
@@ -42,8 +43,8 @@ class FeedViewModel @Inject constructor(
     private fun listenForUnreadNotifications() {
         currentUserId ?: return
         viewModelScope.launch {
-            notificationRepository.hasUnreadNotifications(currentUserId).collect {
-                _hasUnreadNotifications.value = it
+            notificationRepository.getUnreadNotificationCount(currentUserId).collect {
+                _unreadNotificationCount.value = it
             }
         }
     }
@@ -60,6 +61,11 @@ class FeedViewModel @Inject constructor(
                 .flatMapLatest { currentUser ->
                     if (currentUser == null) {
                         return@flatMapLatest flowOf(FeedState.Error("Could not load user profile"))
+                    }
+
+                    if (currentUser.displayName.isNotEmpty() && currentUser.displayNameLower.isEmpty()) {
+                        val updatedUser = currentUser.copy(displayNameLower = currentUser.displayName.lowercase())
+                        userRepository.updateUser(updatedUser)
                     }
 
                     val userIdsToFetch = (currentUser.following + currentUserId).distinct()
@@ -101,7 +107,7 @@ class FeedViewModel @Inject constructor(
         }
     }
 
-    fun deletePost(postId: String) { // Add this function
+    fun deletePost(postId: String) {
         viewModelScope.launch {
             deletePostUseCase(postId)
         }

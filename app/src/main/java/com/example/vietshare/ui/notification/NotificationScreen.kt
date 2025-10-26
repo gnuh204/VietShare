@@ -110,6 +110,7 @@ fun NotificationItem(
                 when (item.notification.type) {
                     "LIKE" -> append(" liked your post.")
                     "FOLLOW" -> append(" started following you.")
+                    "COMMENT" -> append(" commented on your post.")
                     else -> append(" sent you a notification.")
                 }
             }

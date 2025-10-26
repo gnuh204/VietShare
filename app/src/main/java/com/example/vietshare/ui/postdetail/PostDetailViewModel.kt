@@ -12,10 +12,10 @@ import com.example.vietshare.domain.model.PostWithUser
 import com.example.vietshare.domain.repository.AuthRepository
 import com.example.vietshare.domain.repository.PostRepository
 import com.example.vietshare.domain.repository.UserRepository
+import com.example.vietshare.domain.usecase.AddCommentUseCase
 import com.example.vietshare.domain.usecase.DeletePostUseCase
 import com.example.vietshare.domain.usecase.LikePostUseCase
 import com.example.vietshare.domain.usecase.UnlikePostUseCase
-import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -40,10 +40,11 @@ sealed class PostDetailState {
 class PostDetailViewModel @Inject constructor(
     private val postRepository: PostRepository,
     private val userRepository: UserRepository,
-    private val authRepository: AuthRepository,
+    private val authRepository: AuthRepository, // Still need this for currentUserId
     private val likePostUseCase: LikePostUseCase,
     private val unlikePostUseCase: UnlikePostUseCase,
     private val deletePostUseCase: DeletePostUseCase,
+    private val addCommentUseCase: AddCommentUseCase, // Add this
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -105,16 +106,13 @@ class PostDetailViewModel @Inject constructor(
     }
 
     fun addComment() {
-        if (commentContent.isBlank() || currentUserId == null) return
-        val newComment = Comment(
-            postId = postId,
-            senderId = currentUserId,
-            content = commentContent,
-            timestamp = Timestamp.now() // Add timestamp
-        )
+        if (commentContent.isBlank()) return
+        val content = commentContent
+        commentContent = "" // Clear input field immediately
+
         viewModelScope.launch {
-            postRepository.addComment(newComment)
-            commentContent = ""
+            addCommentUseCase(postId, content)
+            // UI will update automatically because getComments is a Flow
         }
     }
 

@@ -27,7 +27,7 @@ fun FeedScreen(
     onNavigateToNotifications: () -> Unit
 ) {
     val feedState by viewModel.feedState.collectAsState()
-    val hasUnreadNotifications by viewModel.hasUnreadNotifications.collectAsState()
+    val unreadCount by viewModel.unreadNotificationCount.collectAsState()
 
     Scaffold(
         topBar = {
@@ -41,8 +41,10 @@ fun FeedScreen(
                         Icon(Icons.Default.Email, contentDescription = "Messages")
                     }
                     BadgedBox(badge = {
-                        if (hasUnreadNotifications) {
-                            Badge()
+                        if (unreadCount > 0) {
+                            Badge {
+                                Text(text = unreadCount.toString())
+                            }
                         }
                     }) {
                         IconButton(onClick = onNavigateToNotifications) {
@@ -90,7 +92,7 @@ fun FeedScreen(
                                         isLiked = item.post.likes.contains(viewModel.currentUserId)
                                     )
                                 },
-                                onDeleteClick = { viewModel.deletePost(item.post.postId) } // Connect the delete action
+                                onDeleteClick = { viewModel.deletePost(item.post.postId) }
                             )
                         }
                     }

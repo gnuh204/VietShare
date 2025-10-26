@@ -7,6 +7,7 @@ data class User(
     val username: String = "",
     val email: String = "",
     val displayName: String = "",
+    val displayNameLower: String = "", // Add this for case-insensitive search
     val bio: String = "",
     val profileImageUrl: String = "", // Avatar URL
 

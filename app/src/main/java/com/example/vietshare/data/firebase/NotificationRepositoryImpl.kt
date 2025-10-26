@@ -1,5 +1,6 @@
 package com.example.vietshare.data.firebase
 
+import android.util.Log
 import com.example.vietshare.data.model.Notification
 import com.example.vietshare.domain.repository.NotificationRepository
 import com.google.firebase.firestore.FirebaseFirestore
@@ -29,17 +30,17 @@ class NotificationRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
-    override fun hasUnreadNotifications(userId: String): Flow<Boolean> = callbackFlow {
+    override fun getUnreadNotificationCount(userId: String): Flow<Int> = callbackFlow {
         val listener = firestore.collection("Notifications")
             .whereEqualTo("recipientId", userId)
-            .whereEqualTo("isRead", false)
-            .limit(1)
+            .whereEqualTo("read", false) // THE FIX: Use "read" to match Firestore
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
+                    Log.e("FirestoreError", "Error getting notification count", error)
                     close(error)
                     return@addSnapshotListener
                 }
-                trySend(snapshot != null && !snapshot.isEmpty)
+                trySend(snapshot?.size() ?: 0)
             }
         awaitClose { listener.remove() }
     }
@@ -55,14 +56,14 @@ class NotificationRepositoryImpl @Inject constructor(
     override suspend fun markAllAsRead(userId: String): Result<Unit> = try {
         val unreadNotifications = firestore.collection("Notifications")
             .whereEqualTo("recipientId", userId)
-            .whereEqualTo("isRead", false)
+            .whereEqualTo("read", false) // THE FIX: Use "read" to match Firestore
             .get()
             .await()
 
         if (!unreadNotifications.isEmpty) {
             val batch: WriteBatch = firestore.batch()
             for (document in unreadNotifications.documents) {
-                batch.update(document.reference, "isRead", true)
+                batch.update(document.reference, "read", true) // THE FIX: Use "read" to match Firestore
             }
             batch.commit().await()
         }

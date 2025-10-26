@@ -51,10 +51,11 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override suspend fun searchUsers(query: String, currentUserId: String): Result<List<User>> = try {
+        val lowercaseQuery = query.lowercase()
         val usersQuery = firestore.collection("Users")
-            .orderBy("displayName")
-            .startAt(query)
-            .endAt(query + '\uf8ff')
+            .orderBy("displayNameLower")
+            .startAt(lowercaseQuery)
+            .endAt(lowercaseQuery + '\uf8ff')
             .limit(20)
             .get()
             .await()
@@ -100,11 +101,9 @@ class UserRepositoryImpl @Inject constructor(
             val currentUserRef = firestore.collection("Users").document(currentUserId)
             val targetUserRef = firestore.collection("Users").document(targetUserId)
 
-            // For current user: add target to following list and increment count
             it.update(currentUserRef, "following", FieldValue.arrayUnion(targetUserId))
             it.update(currentUserRef, "followingCount", FieldValue.increment(1))
 
-            // For target user: add current user to followers list and increment count
             it.update(targetUserRef, "followers", FieldValue.arrayUnion(currentUserId))
             it.update(targetUserRef, "followersCount", FieldValue.increment(1))
         }.await()
@@ -118,11 +117,9 @@ class UserRepositoryImpl @Inject constructor(
             val currentUserRef = firestore.collection("Users").document(currentUserId)
             val targetUserRef = firestore.collection("Users").document(targetUserId)
 
-            // For current user: remove target from following list and decrement count
             it.update(currentUserRef, "following", FieldValue.arrayRemove(targetUserId))
             it.update(currentUserRef, "followingCount", FieldValue.increment(-1))
 
-            // For target user: remove current user from followers list and decrement count
             it.update(targetUserRef, "followers", FieldValue.arrayRemove(currentUserId))
             it.update(targetUserRef, "followersCount", FieldValue.increment(-1))
         }.await()

@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// Data class to combine a Chat room with the other user's info
 data class ChatWithUserInfo(
     val chat: Chat,
     val otherUser: User
@@ -34,38 +33,43 @@ class ChatListViewModel @Inject constructor(
     private val _chatListState = MutableStateFlow<ChatListState>(ChatListState.Loading)
     val chatListState: StateFlow<ChatListState> = _chatListState
 
+    val currentUserId = authRepository.getCurrentUserId()
+
     init {
-        loadChatList()
+        loadChatRooms()
     }
 
-    private fun loadChatList() {
-        viewModelScope.launch {
-            val currentUserId = authRepository.getCurrentUserId() ?: return@launch
+    private fun loadChatRooms() {
+        if (currentUserId == null) {
+            _chatListState.value = ChatListState.Error("User not logged in.")
+            return
+        }
 
+        viewModelScope.launch {
             chatRepository.getChatRooms(currentUserId)
                 .flatMapLatest { chats ->
                     if (chats.isEmpty()) {
-                        flowOf(emptyList())
-                    } else {
-                        val otherUserIds = chats.mapNotNull { chat ->
-                            chat.participantIds.find { it != currentUserId }
-                        }.distinct()
+                        return@flatMapLatest flowOf(emptyList<ChatWithUserInfo>())
+                    }
 
-                        userRepository.getUsers(otherUserIds).map { users ->
-                            val userMap = users.associateBy { it.userId }
-                            chats.mapNotNull { chat ->
-                                val otherUserId = chat.participantIds.find { it != currentUserId }
-                                userMap[otherUserId]?.let { otherUser ->
-                                    ChatWithUserInfo(chat, otherUser)
-                                }
+                    val otherUserIds = chats.mapNotNull { chat ->
+                        chat.participantIds.find { it != currentUserId }
+                    }.distinct()
+
+                    userRepository.getUsers(otherUserIds).map { users ->
+                        val userMap = users.associateBy { it.userId }
+                        chats.mapNotNull { chat ->
+                            val otherUserId = chat.participantIds.find { it != currentUserId }
+                            userMap[otherUserId]?.let {
+                                ChatWithUserInfo(chat, it)
                             }
                         }
                     }
                 }
                 .onStart { _chatListState.value = ChatListState.Loading }
                 .catch { e -> _chatListState.value = ChatListState.Error(e.message ?: "An error occurred") }
-                .collect { result ->
-                    _chatListState.value = ChatListState.Success(result)
+                .collect { chatList ->
+                    _chatListState.value = ChatListState.Success(chatList)
                 }
         }
     }
