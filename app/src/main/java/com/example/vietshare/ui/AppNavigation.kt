@@ -19,10 +19,14 @@ import com.example.vietshare.ui.postdetail.PostDetailScreen
 import com.example.vietshare.ui.profile.ProfileScreen
 import com.example.vietshare.ui.settings.SettingsScreen
 import com.example.vietshare.ui.signup.SignupScreen
+import com.example.vietshare.ui.signup.VerifyOtpScreen
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 object Routes {
     const val LOGIN = "login"
     const val SIGNUP = "signup"
+    const val VERIFY_OTP = "verify_otp/{email}/{password}/{displayName}/{otp}" // Add OTP to route
     const val FEED = "feed"
     const val CREATE_POST = "create_post"
     const val PROFILE = "profile/{userId}"
@@ -37,6 +41,10 @@ object Routes {
     fun profile(userId: String) = "profile/$userId"
     fun postDetail(postId: String) = "post/$postId"
     fun chatDetail(roomId: String) = "chat/$roomId"
+    fun verifyOtp(email: String, pass: String, name: String, otp: String): String {
+        val encodedEmail = URLEncoder.encode(email, StandardCharsets.UTF_8.toString())
+        return "verify_otp/$encodedEmail/$pass/$name/$otp"
+    }
 }
 
 @Composable
@@ -52,8 +60,23 @@ fun AppNavigation() {
         }
         composable(Routes.SIGNUP) {
             SignupScreen(
-                onSignupSuccess = { navController.navigate(Routes.FEED) { popUpTo(Routes.LOGIN) { inclusive = true } } },
+                onNavigateToVerifyOtp = { email, password, displayName, otp -> 
+                    navController.navigate(Routes.verifyOtp(email, password, displayName, otp)) 
+                },
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = Routes.VERIFY_OTP,
+            arguments = listOf(
+                navArgument("email") { type = NavType.StringType },
+                navArgument("password") { type = NavType.StringType },
+                navArgument("displayName") { type = NavType.StringType },
+                navArgument("otp") { type = NavType.StringType },
+            )
+        ) {
+            VerifyOtpScreen(
+                 onVerificationSuccess = { navController.navigate(Routes.FEED) { popUpTo(Routes.LOGIN) { inclusive = true } } }
             )
         }
         composable(Routes.FEED) {

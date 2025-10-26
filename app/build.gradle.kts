@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("org.jetbrains.kotlin.plugin.serialization") version libs.versions.kotlin.get() // THE REAL FIX
     id("kotlin-kapt")
     id("com.google.dagger.hilt.android")
     id("com.google.gms.google-services")
@@ -34,6 +35,10 @@ android {
         buildConfigField("String", "CLOUDINARY_CLOUD_NAME", "\"${localProperties.getProperty("CLOUDINARY_CLOUD_NAME")}\"")
         buildConfigField("String", "CLOUDINARY_API_KEY", "\"${localProperties.getProperty("CLOUDINARY_API_KEY")}\"")
         buildConfigField("String", "CLOUDINARY_API_SECRET", "\"${localProperties.getProperty("CLOUDINARY_API_SECRET")}\"")
+
+        // Make SendGrid credentials available in BuildConfig
+        buildConfigField("String", "SENDGRID_API_KEY", "\"${localProperties.getProperty("SENDGRID_API_KEY")}\"")
+        buildConfigField("String", "SENDER_EMAIL", "\"${localProperties.getProperty("SENDER_EMAIL")}\"")
     }
 
     buildTypes {
@@ -54,7 +59,7 @@ android {
     }
     buildFeatures {
         compose = true
-        buildConfig = true // Enable BuildConfig
+        buildConfig = true
     }
 }
 
@@ -88,8 +93,13 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.0.0"))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
-    // implementation("com.google.firebase:firebase-storage-ktx") // No longer needed
 
+    // Ktor for networking
+    implementation("io.ktor:ktor-client-core:2.3.9")
+    implementation("io.ktor:ktor-client-cio:2.3.9")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.9")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.9")
+    
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
