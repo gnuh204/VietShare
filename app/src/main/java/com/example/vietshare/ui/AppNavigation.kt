@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.vietshare.ui.chat.ChatScreen
 import com.example.vietshare.ui.chatlist.ChatListScreen
+import com.example.vietshare.ui.chatlist.CreateGroupScreen
 import com.example.vietshare.ui.createpost.CreatePostScreen
 import com.example.vietshare.ui.editprofile.EditProfileScreen
 import com.example.vietshare.ui.feed.FeedScreen
@@ -26,12 +27,13 @@ import java.nio.charset.StandardCharsets
 object Routes {
     const val LOGIN = "login"
     const val SIGNUP = "signup"
-    const val VERIFY_OTP = "verify_otp/{email}/{password}/{displayName}/{otp}" // Add OTP to route
+    const val VERIFY_OTP = "verify_otp/{email}/{password}/{displayName}/{otp}"
     const val FEED = "feed"
     const val CREATE_POST = "create_post"
     const val PROFILE = "profile/{userId}"
     const val POST_DETAIL = "post/{postId}"
     const val CHAT_LIST = "chat_list"
+    const val CREATE_GROUP = "create_group" // New Route
     const val CHAT_DETAIL = "chat/{roomId}"
     const val NOTIFICATION = "notification"
     const val FIND_FRIENDS = "find_friends"
@@ -116,7 +118,13 @@ fun AppNavigation() {
         }
         composable(Routes.CHAT_LIST) {
             ChatListScreen(
-                onNavigateToChat = { roomId -> navController.navigate(Routes.chatDetail(roomId)) }
+                onNavigateToChat = { roomId -> navController.navigate(Routes.chatDetail(roomId)) },
+                onNavigateToCreateGroup = { navController.navigate(Routes.CREATE_GROUP) } // Add this
+            )
+        }
+        composable(Routes.CREATE_GROUP) { // Add this composable
+            CreateGroupScreen(
+                onGroupCreated = { navController.popBackStack() }
             )
         }
         composable(

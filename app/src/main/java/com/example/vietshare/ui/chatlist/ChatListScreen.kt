@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -26,12 +28,18 @@ import com.example.vietshare.util.TimestampFormatter
 @Composable
 fun ChatListScreen(
     viewModel: ChatListViewModel = hiltViewModel(),
-    onNavigateToChat: (String) -> Unit
+    onNavigateToChat: (String) -> Unit,
+    onNavigateToCreateGroup: () -> Unit // Add this
 ) {
     val chatListState by viewModel.chatListState.collectAsState()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Messages") }) }
+        topBar = { TopAppBar(title = { Text("Messages") }) },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onNavigateToCreateGroup) {
+                Icon(Icons.Default.Add, contentDescription = "Create Group")
+            }
+        }
     ) { padding ->
         Box(
             modifier = Modifier
@@ -77,6 +85,18 @@ fun ChatItem(item: ChatWithUserInfo, currentUserId: String?, onClick: () -> Unit
     val unreadCount = item.chat.unreadCount[currentUserId] ?: 0
     val hasUnread = unreadCount > 0
 
+    // Determine the display name and image for one-to-one vs group chats
+    val displayName = if (item.chat.type == "GROUP") {
+        item.chat.groupName ?: "Group Chat"
+    } else {
+        item.otherUser.displayName.ifEmpty { item.otherUser.username }
+    }
+    val imageUrl = if (item.chat.type == "GROUP") {
+        item.chat.groupImageUrl
+    } else {
+        item.otherUser.profileImageUrl
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -85,8 +105,8 @@ fun ChatItem(item: ChatWithUserInfo, currentUserId: String?, onClick: () -> Unit
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
-            model = item.otherUser.profileImageUrl.ifEmpty { R.drawable.ic_launcher_background },
-            contentDescription = "User Avatar",
+            model = imageUrl?.ifEmpty { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background,
+            contentDescription = "Chat Avatar",
             modifier = Modifier
                 .size(56.dp)
                 .clip(CircleShape),
@@ -95,7 +115,7 @@ fun ChatItem(item: ChatWithUserInfo, currentUserId: String?, onClick: () -> Unit
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = item.otherUser.displayName.ifEmpty { item.otherUser.username },
+                text = displayName,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = if (hasUnread) FontWeight.ExtraBold else FontWeight.Bold
             )

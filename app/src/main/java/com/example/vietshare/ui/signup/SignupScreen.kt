@@ -107,7 +107,7 @@ fun SignupScreen(
         Button(
             onClick = {
                 if (password == confirmPassword) {
-                    viewModel.sendOtp(email)
+                    viewModel.sendOtp(email) // Corrected function call
                 } else {
                     passwordError = "Passwords do not match."
                 }
