@@ -15,6 +15,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Transaction
+import com.google.firebase.firestore.WriteBatch
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -278,6 +279,32 @@ class ChatRepositoryImpl @Inject constructor(
         firestore.collection("Chats").document(roomId)
             .update("groupImageUrl", imageUrl)
             .await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override suspend fun deleteMessage(roomId: String, messageId: String): Result<Unit> = try {
+        firestore.collection("Chats").document(roomId)
+            .collection("Messages").document(messageId)
+            .delete()
+            .await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override suspend fun deleteChat(roomId: String): Result<Unit> = try {
+        val chatRef = firestore.collection("Chats").document(roomId)
+        val messagesSnapshot = chatRef.collection("Messages").get().await()
+
+        firestore.runBatch { batch ->
+            for (document in messagesSnapshot.documents) {
+                batch.delete(document.reference)
+            }
+            batch.delete(chatRef)
+        }.await()
+
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)

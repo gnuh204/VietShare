@@ -22,4 +22,6 @@ interface ChatRepository {
     suspend fun uploadChatImage(imageUri: Uri, roomId: String): Result<MediaInfo>
     suspend fun uploadGroupChatImage(imageUri: Uri, roomId: String): Result<String>
     suspend fun updateGroupImageUrl(roomId: String, imageUrl: String): Result<Unit>
+    suspend fun deleteMessage(roomId: String, messageId: String): Result<Unit>
+    suspend fun deleteChat(roomId: String): Result<Unit>
 }

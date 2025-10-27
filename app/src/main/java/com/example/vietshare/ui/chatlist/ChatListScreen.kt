@@ -1,6 +1,7 @@
 package com.example.vietshare.ui.chatlist
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,9 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,9 +28,10 @@ import com.example.vietshare.util.TimestampFormatter
 fun ChatListScreen(
     viewModel: ChatListViewModel = hiltViewModel(),
     onNavigateToChat: (String) -> Unit,
-    onNavigateToCreateGroup: () -> Unit // Add this
+    onNavigateToCreateGroup: () -> Unit
 ) {
     val chatListState by viewModel.chatListState.collectAsState()
+    var showDeleteConfirmationFor by remember { mutableStateOf<ChatWithUserInfo?>(null) }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Messages") }) },
@@ -63,7 +63,8 @@ fun ChatListScreen(
                                 ChatItem(
                                     item = item,
                                     currentUserId = viewModel.currentUserId,
-                                    onClick = { onNavigateToChat(item.chat.roomId) }
+                                    onClick = { onNavigateToChat(item.chat.roomId) },
+                                    onLongPress = { showDeleteConfirmationFor = item }
                                 )
                                 Divider()
                             }
@@ -78,10 +79,33 @@ fun ChatListScreen(
             }
         }
     }
+
+    if (showDeleteConfirmationFor != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmationFor = null },
+            title = { Text("Delete Conversation") },
+            text = { Text("Are you sure you want to delete this conversation? This will delete the conversation for everyone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = { 
+                        viewModel.deleteChat(showDeleteConfirmationFor!!.chat.roomId)
+                        showDeleteConfirmationFor = null
+                    }
+                ) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteConfirmationFor = null }) { Text("Cancel") } }
+        )
+    }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ChatItem(item: ChatWithUserInfo, currentUserId: String?, onClick: () -> Unit) {
+fun ChatItem(
+    item: ChatWithUserInfo, 
+    currentUserId: String?, 
+    onClick: () -> Unit, 
+    onLongPress: () -> Unit
+) {
     val unreadCount = item.chat.unreadCount[currentUserId] ?: 0
     val hasUnread = unreadCount > 0
 
@@ -100,7 +124,7 @@ fun ChatItem(item: ChatWithUserInfo, currentUserId: String?, onClick: () -> Unit
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongPress)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

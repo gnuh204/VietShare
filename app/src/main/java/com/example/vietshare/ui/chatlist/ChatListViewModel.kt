@@ -73,4 +73,10 @@ class ChatListViewModel @Inject constructor(
                 }
         }
     }
+
+    fun deleteChat(roomId: String) {
+        viewModelScope.launch {
+            chatRepository.deleteChat(roomId)
+        }
+    }
 }

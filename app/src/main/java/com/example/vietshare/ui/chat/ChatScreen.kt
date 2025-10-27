@@ -3,8 +3,10 @@ package com.example.vietshare.ui.chat
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
@@ -21,12 +24,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.vietshare.R
@@ -40,10 +41,15 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(viewModel: MessageViewModel = hiltViewModel(), onNavigateToGroupDetails: (String) -> Unit) {
+fun ChatScreen(
+    viewModel: MessageViewModel = hiltViewModel(), 
+    onNavigateToGroupDetails: (String) -> Unit,
+    onNavigateBack: () -> Unit
+) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    var showDeleteConfirmationFor by remember { mutableStateOf<Message?>(null) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
@@ -56,14 +62,37 @@ fun ChatScreen(viewModel: MessageViewModel = hiltViewModel(), onNavigateToGroupD
         topBar = {
             if(currentUiState is UiState.Success){
                 val chat = currentUiState.chat
-                val otherUser = if(chat?.type == ChatType.ONE_TO_ONE.name) {
+                val isGroupChat = chat?.type == ChatType.GROUP.name
+                
+                val otherUser = if (!isGroupChat) {
                     currentUiState.members.values.find { it.userId != viewModel.currentUserId }
                 } else null
+
+                val title = chat?.groupName ?: otherUser?.displayName ?: "Chat"
+                val imageUrl = chat?.groupImageUrl ?: otherUser?.profileImageUrl
                 
                 TopAppBar(
-                    title = { Text(chat?.groupName ?: otherUser?.displayName ?: "Chat") },
-                    modifier = if (chat?.type == ChatType.GROUP.name) {
-                        Modifier.clickable { onNavigateToGroupDetails(chat.roomId) }
+                    title = { 
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            AsyncImage(
+                                model = imageUrl?.ifEmpty { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background,
+                                contentDescription = "Chat Avatar",
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(title)
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    modifier = if (isGroupChat) {
+                        Modifier.clickable { onNavigateToGroupDetails(chat!!.roomId) }
                     } else {
                         Modifier
                     }
@@ -107,7 +136,8 @@ fun ChatScreen(viewModel: MessageViewModel = hiltViewModel(), onNavigateToGroupD
                                     message = message, 
                                     isCurrentUser = isCurrentUser, 
                                     sender = sender,
-                                    isGroupChat = state.chat?.type == ChatType.GROUP.name
+                                    isGroupChat = state.chat?.type == ChatType.GROUP.name,
+                                    onLongPress = { showDeleteConfirmationFor = message }
                                 )
                             }
                         }
@@ -125,6 +155,23 @@ fun ChatScreen(viewModel: MessageViewModel = hiltViewModel(), onNavigateToGroupD
                 }
             }
         }
+    }
+
+    if (showDeleteConfirmationFor != null && showDeleteConfirmationFor?.senderId == viewModel.currentUserId) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmationFor = null },
+            title = { Text("Delete Message") },
+            text = { Text("Are you sure you want to delete this message?") },
+            confirmButton = {
+                TextButton(
+                    onClick = { 
+                        viewModel.deleteMessage(showDeleteConfirmationFor!!.messageId)
+                        showDeleteConfirmationFor = null
+                    }
+                ) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteConfirmationFor = null }) { Text("Cancel") } }
+        )
     }
 }
 
@@ -145,8 +192,15 @@ fun SystemMessage(message: Message) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun MessageBubble(message: Message, isCurrentUser: Boolean, sender: User?, isGroupChat: Boolean) {
+fun MessageBubble(
+    message: Message, 
+    isCurrentUser: Boolean, 
+    sender: User?, 
+    isGroupChat: Boolean,
+    onLongPress: () -> Unit
+) {
     val horizontalArrangement = if (isCurrentUser) Arrangement.End else Arrangement.Start
     val horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start
 
@@ -185,6 +239,7 @@ fun MessageBubble(message: Message, isCurrentUser: Boolean, sender: User?, isGro
                         bottomEnd = if (isCurrentUser) 0.dp else 16.dp
                     ))
                     .background(if (isCurrentUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                    .combinedClickable(onClick = {}, onLongClick = onLongPress)
                     .padding(8.dp)
             ) {
                 Column {

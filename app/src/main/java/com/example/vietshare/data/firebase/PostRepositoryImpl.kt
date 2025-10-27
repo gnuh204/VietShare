@@ -8,6 +8,7 @@ import com.cloudinary.android.callback.UploadCallback
 import com.example.vietshare.data.model.Comment
 import com.example.vietshare.data.model.MediaInfo
 import com.example.vietshare.data.model.Post
+import com.example.vietshare.domain.repository.AuthRepository
 import com.example.vietshare.domain.repository.PostRepository
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -26,10 +27,9 @@ import kotlin.coroutines.resume
 
 class PostRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val mediaManager: MediaManager
+    private val mediaManager: MediaManager,
+    private val authRepository: AuthRepository
 ) : PostRepository {
-
-    // ... (các hàm get, create, like, unlike giữ nguyên) 
 
     override fun getPosts(userId: String): Flow<List<Post>> = callbackFlow {
         val listener = firestore.collection("Posts").whereEqualTo("userId", userId)
@@ -141,13 +141,42 @@ class PostRepositoryImpl @Inject constructor(
     override suspend fun addComment(comment: Comment): Result<Unit> = try {
         firestore.runTransaction {
             val newCommentRef = firestore.collection("Comments").document()
-            // Set the ID on the object before saving
             val commentWithId = comment.copy(commentId = newCommentRef.id)
             it.set(newCommentRef, commentWithId)
 
             val postRef = firestore.collection("Posts").document(comment.postId)
             it.update(postRef, "commentCount", FieldValue.increment(1))
         }.await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+    
+    override suspend fun toggleCommentReaction(postId: String, commentId: String, reaction: String, userId: String): Result<Unit> = try {
+        val commentRef = firestore.collection("Comments").document(commentId)
+
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(commentRef)
+            val comment = snapshot.toObject(Comment::class.java) ?: throw Exception("Comment not found")
+            
+            val currentReactions = comment.reactions.toMutableMap()
+            val userList = currentReactions[reaction]?.toMutableList() ?: mutableListOf()
+            
+            if (userList.contains(userId)) {
+                userList.remove(userId)
+            } else {
+                userList.add(userId)
+            }
+
+            if (userList.isEmpty()) {
+                currentReactions.remove(reaction)
+            } else {
+                currentReactions[reaction] = userList
+            }
+
+            transaction.update(commentRef, "reactions", currentReactions)
+        }.await()
+
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)
@@ -167,7 +196,7 @@ class PostRepositoryImpl @Inject constructor(
         Result.success(Unit)
     } catch (e: Exception) {
         Log.w("PostRepositoryImpl", "Failed to delete image from Cloudinary: ${e.message}")
-        Result.success(Unit) // Do not treat as a fatal error
+        Result.success(Unit)
     }
 
     override suspend fun deleteCommentsByPostId(postId: String): Result<Unit> = try {
@@ -183,6 +212,32 @@ class PostRepositoryImpl @Inject constructor(
             }
             batch.commit().await()
         }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override suspend fun deleteComment(postId: String, commentId: String): Result<Unit> = try {
+        val commentRef = firestore.collection("Comments").document(commentId)
+
+        // Recursively delete replies first
+        val repliesSnapshot = firestore.collection("Comments")
+            .whereEqualTo("parentId", commentId)
+            .get()
+            .await()
+
+        firestore.runBatch { batch ->
+            for (document in repliesSnapshot.documents) {
+                batch.delete(document.reference)
+            }
+            batch.delete(commentRef) // Delete the main comment
+            
+            // Decrement post's comment count
+            val postRef = firestore.collection("Posts").document(postId)
+            batch.update(postRef, "commentCount", FieldValue.increment(-(1 + repliesSnapshot.size().toLong())))
+
+        }.await()
+
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)

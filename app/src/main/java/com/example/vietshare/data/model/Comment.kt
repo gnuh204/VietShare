@@ -5,7 +5,9 @@ import com.google.firebase.Timestamp
 data class Comment(
     val commentId: String = "",
     val postId: String = "",
-    val senderId: String = "", // FIX: Ensure the field is named senderId
+    val senderId: String = "",
+    val parentId: String? = null, // Add this for nested comments
     val content: String = "",
-    val timestamp: Timestamp? = null
+    val timestamp: Timestamp? = null,
+    val reactions: Map<String, List<String>> = emptyMap()
 )

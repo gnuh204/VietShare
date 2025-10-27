@@ -106,4 +106,10 @@ class MessageViewModel @Inject constructor(
             }
         }
     }
+
+    fun deleteMessage(messageId: String) {
+        viewModelScope.launch {
+            chatRepository.deleteMessage(roomId, messageId)
+        }
+    }
 }

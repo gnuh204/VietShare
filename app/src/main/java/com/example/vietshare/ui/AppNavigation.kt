@@ -38,7 +38,7 @@ object Routes {
     const val CREATE_GROUP = "create_group"
     const val CHAT_DETAIL = "chat/{roomId}"
     const val GROUP_DETAILS = "group_details/{roomId}"
-    const val ADD_MEMBERS = "add_members/{roomId}"
+    const val ADD_MEMBERS = "add_members/{roomId}" 
     const val NOTIFICATION = "notification"
     const val FIND_FRIENDS = "find_friends"
     const val EDIT_PROFILE = "edit_profile"
@@ -48,7 +48,7 @@ object Routes {
     fun postDetail(postId: String) = "post/$postId"
     fun chatDetail(roomId: String) = "chat/$roomId"
     fun groupDetails(roomId: String) = "group_details/$roomId"
-    fun addMembers(roomId: String) = "add_members/$roomId"
+    fun addMembers(roomId: String) = "add_members/$roomId" 
     fun verifyOtp(email: String, pass: String, name: String, otp: String): String {
         val encodedEmail = URLEncoder.encode(email, StandardCharsets.UTF_8.toString())
         return "verify_otp/$encodedEmail/$pass/$name/$otp"
@@ -138,7 +138,8 @@ fun AppNavigation() {
             arguments = listOf(navArgument("roomId") { type = NavType.StringType })
         ) {
             ChatScreen(
-                onNavigateToGroupDetails = { roomId -> navController.navigate(Routes.groupDetails(roomId)) }
+                onNavigateToGroupDetails = { roomId -> navController.navigate(Routes.groupDetails(roomId)) },
+                onNavigateBack = { navController.popBackStack() } // Add this
             )
         }
         composable(
@@ -148,7 +149,7 @@ fun AppNavigation() {
             GroupDetailsScreen(
                 onNavigateToProfile = { userId -> navController.navigate(Routes.profile(userId)) },
                 onNavigateToAddMembers = { roomId -> navController.navigate(Routes.addMembers(roomId)) },
-                onNavigateBack = { navController.popBackStack() } // Add this
+                onNavigateBack = { navController.popBackStack() } 
             )
         }
         composable(

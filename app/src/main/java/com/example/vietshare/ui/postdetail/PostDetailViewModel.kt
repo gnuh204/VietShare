@@ -26,11 +26,16 @@ data class CommentWithUser(
     val user: User
 )
 
+data class CommentNode(
+    val commentWithUser: CommentWithUser,
+    val replies: List<CommentNode>
+)
+
 sealed class PostDetailState {
     object Loading : PostDetailState()
     data class Success(
         val post: PostWithUser,
-        val comments: List<CommentWithUser>,
+        val comments: List<CommentNode>, // Changed to a list of nodes
         val postDeleted: Boolean = false
     ) : PostDetailState()
     data class Error(val message: String) : PostDetailState()
@@ -40,11 +45,11 @@ sealed class PostDetailState {
 class PostDetailViewModel @Inject constructor(
     private val postRepository: PostRepository,
     private val userRepository: UserRepository,
-    private val authRepository: AuthRepository, // Still need this for currentUserId
+    private val authRepository: AuthRepository,
     private val likePostUseCase: LikePostUseCase,
     private val unlikePostUseCase: UnlikePostUseCase,
     private val deletePostUseCase: DeletePostUseCase,
-    private val addCommentUseCase: AddCommentUseCase, // Add this
+    private val addCommentUseCase: AddCommentUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -56,6 +61,9 @@ class PostDetailViewModel @Inject constructor(
 
     var commentContent by mutableStateOf("")
         private set
+        
+    private val _replyingToComment = MutableStateFlow<CommentWithUser?>(null)
+    val replyingToComment: StateFlow<CommentWithUser?> = _replyingToComment
 
     init {
         loadContent()
@@ -63,6 +71,34 @@ class PostDetailViewModel @Inject constructor(
 
     fun onCommentContentChange(content: String) {
         commentContent = content
+    }
+
+    fun onStartReply(comment: CommentWithUser) {
+        _replyingToComment.value = comment
+        commentContent = "@${comment.user.username} "
+    }
+
+    fun onCancelReply() {
+        _replyingToComment.value = null
+        commentContent = ""
+    }
+
+    private fun buildCommentTree(comments: List<CommentWithUser>): List<CommentNode> {
+        val commentMap = comments.associateBy { it.comment.commentId }
+        val childMap = comments.groupBy { it.comment.parentId }
+
+        return comments
+            .filter { it.comment.parentId == null } // Get root comments
+            .map { rootComment ->
+                buildNode(rootComment, childMap, commentMap)
+            }
+    }
+
+    private fun buildNode(comment: CommentWithUser, childMap: Map<String?, List<CommentWithUser>>, commentMap: Map<String, CommentWithUser>): CommentNode {
+        val replies = childMap[comment.comment.commentId]?.map { reply ->
+            buildNode(reply, childMap, commentMap)
+        } ?: emptyList()
+        return CommentNode(comment, replies)
     }
 
     private fun loadContent() {
@@ -94,7 +130,8 @@ class PostDetailViewModel @Inject constructor(
                 if (postWithUser == null) {
                     PostDetailState.Error("Post not found")
                 } else {
-                    PostDetailState.Success(postWithUser, commentsWithUsers)
+                    val commentTree = buildCommentTree(commentsWithUsers)
+                    PostDetailState.Success(postWithUser, commentTree)
                 }
             }
             .onStart { _postDetailState.value = PostDetailState.Loading }
@@ -108,11 +145,18 @@ class PostDetailViewModel @Inject constructor(
     fun addComment() {
         if (commentContent.isBlank()) return
         val content = commentContent
-        commentContent = "" // Clear input field immediately
+        val parentId = _replyingToComment.value?.comment?.commentId
+        commentContent = ""
+        _replyingToComment.value = null 
 
         viewModelScope.launch {
-            addCommentUseCase(postId, content)
-            // UI will update automatically because getComments is a Flow
+            addCommentUseCase(postId, content, parentId)
+        }
+    }
+
+    fun deleteComment(commentId: String) {
+        viewModelScope.launch {
+            postRepository.deleteComment(postId, commentId)
         }
     }
 
@@ -127,6 +171,13 @@ class PostDetailViewModel @Inject constructor(
             } else {
                 likePostUseCase(post.postId, post.userId)
             }
+        }
+    }
+
+    fun toggleCommentReaction(commentId: String, reaction: String) {
+        val userId = currentUserId ?: return
+        viewModelScope.launch {
+            postRepository.toggleCommentReaction(postId, commentId, reaction, userId)
         }
     }
 

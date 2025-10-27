@@ -17,9 +17,11 @@ interface PostRepository {
     suspend fun likePost(postId: String, userId: String): Result<Unit>
     suspend fun unlikePost(postId: String, userId: String): Result<Unit>
     suspend fun addComment(comment: Comment): Result<Unit>
+    suspend fun toggleCommentReaction(postId: String, commentId: String, reaction: String, userId: String): Result<Unit> // New function
     
     // Functions for deletion
     suspend fun deletePost(postId: String): Result<Unit>
     suspend fun deletePostImage(publicId: String): Result<Unit> // New
     suspend fun deleteCommentsByPostId(postId: String): Result<Unit> // New
+    suspend fun deleteComment(postId: String, commentId: String): Result<Unit>
 }
