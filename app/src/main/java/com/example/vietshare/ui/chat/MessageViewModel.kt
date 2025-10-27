@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.vietshare.data.model.Chat
 import com.example.vietshare.data.model.Message
 import com.example.vietshare.data.model.User
 import com.example.vietshare.domain.repository.AuthRepository
@@ -17,6 +18,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+
+sealed class UiState {
+    object Loading : UiState()
+    data class Success(val messages: List<Message>, val members: Map<String, User>, val chat: Chat?) : UiState()
+    data class Error(val message: String) : UiState()
+}
 
 @HiltViewModel
 class MessageViewModel @Inject constructor(
@@ -30,11 +38,8 @@ class MessageViewModel @Inject constructor(
     private val roomId: String = savedStateHandle.get<String>("roomId")!!
     val currentUserId: String? = authRepository.getCurrentUserId()
 
-    private val _messageState = MutableStateFlow<MessageState>(MessageState.Loading)
-    val messageState: StateFlow<MessageState> = _messageState
-
-    private val _otherUserState = MutableStateFlow<User?>(null)
-    val otherUserState: StateFlow<User?> = _otherUserState
+    private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
+    val uiState: StateFlow<UiState> = _uiState
 
     var messageContent by mutableStateOf("")
         private set
@@ -43,8 +48,7 @@ class MessageViewModel @Inject constructor(
         private set
 
     init {
-        loadMessages()
-        loadOtherUserInfo()
+        loadChatInfo()
         markAsRead()
     }
 
@@ -64,25 +68,25 @@ class MessageViewModel @Inject constructor(
         selectedImageUri = uri
     }
 
-    private fun loadOtherUserInfo() {
-        val otherUserId = roomId.split("_").find { it != currentUserId }
-        if (otherUserId != null) {
-            viewModelScope.launch {
-                userRepository.getUser(otherUserId).collect {
-                    _otherUserState.value = it
+    private fun loadChatInfo() {
+        viewModelScope.launch {
+            chatRepository.getChatRoom(roomId).flatMapLatest { chat ->
+                if(chat == null) return@flatMapLatest flowOf(UiState.Error("Chat room not found"))
+
+                val memberIds = chat.participantIds
+                val messagesFlow = chatRepository.getMessages(roomId)
+                val membersFlow = userRepository.getUsers(memberIds)
+
+                messagesFlow.combine(membersFlow) { messages, members ->
+                    val memberMap = members.associateBy { it.userId }
+                    UiState.Success(messages, memberMap, chat)
                 }
             }
-        }
-    }
-
-    private fun loadMessages() {
-        viewModelScope.launch {
-            chatRepository.getMessages(roomId)
-                .onStart { _messageState.value = MessageState.Loading }
-                .catch { e -> _messageState.value = MessageState.Error(e.message ?: "An error occurred") }
-                .collect { messages ->
-                    _messageState.value = MessageState.Success(messages)
-                }
+            .onStart { _uiState.value = UiState.Loading }
+            .catch { e -> _uiState.value = UiState.Error(e.message ?: "An error occurred") }
+            .collect{ state ->
+                 _uiState.value = state
+            }
         }
     }
 
@@ -92,22 +96,14 @@ class MessageViewModel @Inject constructor(
         val contentToSend = messageContent.takeIf { it.isNotBlank() }
         val imageToSend = selectedImageUri
 
-        // Clear inputs immediately
         messageContent = ""
         selectedImageUri = null
 
         viewModelScope.launch {
             sendMessageUseCase(roomId, contentToSend, imageToSend).onFailure {
-                // Restore inputs if sending failed
                 messageContent = contentToSend ?: ""
                 selectedImageUri = imageToSend
             }
         }
     }
-}
-
-sealed class MessageState {
-    object Loading : MessageState()
-    data class Success(val messages: List<Message>) : MessageState()
-    data class Error(val message: String) : MessageState()
 }

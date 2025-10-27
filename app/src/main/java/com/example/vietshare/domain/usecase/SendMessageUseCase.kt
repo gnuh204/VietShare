@@ -20,9 +20,6 @@ class SendMessageUseCase @Inject constructor(
         }
         
         return try {
-            val receiverId = roomId.split("_").find { it != currentUserId }
-                ?: return Result.failure(Exception("Receiver not found in room"))
-
             var mediaInfo: MediaInfo? = null
             imageUri?.let {
                 mediaInfo = chatRepository.uploadChatImage(it, roomId).getOrThrow()
@@ -36,6 +33,10 @@ class SendMessageUseCase @Inject constructor(
                 timestamp = Timestamp.now()
             )
             
+            // The receiverId is only needed for 1-on-1 chats to increment the counter.
+            // For group chats, the logic is handled differently in the repository.
+            val receiverId = roomId.split("_").find { it != currentUserId } ?: ""
+
             chatRepository.sendMessage(message, receiverId)
             Result.success(Unit)
         } catch (e: Exception) {

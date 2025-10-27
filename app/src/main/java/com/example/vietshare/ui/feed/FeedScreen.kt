@@ -1,19 +1,30 @@
 package com.example.vietshare.ui.feed
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import com.example.vietshare.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -22,12 +33,14 @@ fun FeedScreen(
     onNavigateToCreatePost: () -> Unit,
     onNavigateToProfile: (String) -> Unit,
     onNavigateToPostDetail: (String) -> Unit,
-    onNavigateToFindFriends: () -> Unit,
     onNavigateToChatList: () -> Unit,
-    onNavigateToNotifications: () -> Unit
+    onNavigateToNotifications: () -> Unit,
+    onNavigateToFindFriends: () -> Unit
 ) {
     val feedState by viewModel.feedState.collectAsState()
-    val unreadCount by viewModel.unreadNotificationCount.collectAsState()
+    val unreadNotificationCount by viewModel.unreadNotificationCount.collectAsState()
+    val unreadChatCount by viewModel.unreadChatCount.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
 
     Scaffold(
         topBar = {
@@ -37,22 +50,31 @@ fun FeedScreen(
                     IconButton(onClick = onNavigateToFindFriends) {
                         Icon(Icons.Default.Search, contentDescription = "Find Friends")
                     }
-                    IconButton(onClick = onNavigateToChatList) {
-                        Icon(Icons.Default.Email, contentDescription = "Messages")
-                    }
-                    BadgedBox(badge = {
-                        if (unreadCount > 0) {
-                            Badge {
-                                Text(text = unreadCount.toString())
+                    IconButton(onClick = onNavigateToNotifications) {
+                        BadgedBox(badge = {
+                            if (unreadNotificationCount > 0) {
+                                Badge { Text(unreadNotificationCount.toString()) }
                             }
-                        }
-                    }) {
-                        IconButton(onClick = onNavigateToNotifications) {
+                        }) {
                             Icon(Icons.Default.Notifications, contentDescription = "Notifications")
                         }
                     }
+                    IconButton(onClick = onNavigateToChatList) {
+                         BadgedBox(badge = {
+                            if (unreadChatCount > 0) {
+                                Badge { Text(unreadChatCount.toString()) }
+                            }
+                        }) {
+                            Icon(Icons.Default.ChatBubble, contentDescription = "Chat")
+                        }
+                    }
                     IconButton(onClick = { viewModel.currentUserId?.let { onNavigateToProfile(it) } }) {
-                        Icon(Icons.Default.Person, contentDescription = "My Profile")
+                        AsyncImage(
+                            model = currentUser?.profileImageUrl?.ifEmpty { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background,
+                            contentDescription = "My Profile",
+                            modifier = Modifier.size(32.dp).clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
                     }
                 }
             )
@@ -75,31 +97,22 @@ fun FeedScreen(
                     }
                 }
                 is FeedState.Success -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = 8.dp)
-                    ) {
-                        items(state.posts, key = { it.post.postId }) { item ->
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(state.posts, key = { it.post.postId }) { postWithUser ->
                             PostItem(
-                                item = item,
+                                item = postWithUser,
                                 currentUserId = viewModel.currentUserId,
-                                onUsernameClick = { onNavigateToProfile(item.user.userId) },
-                                onCommentClick = { onNavigateToPostDetail(item.post.postId) },
-                                onLikeClick = { 
-                                    viewModel.toggleLike(
-                                        postId = item.post.postId,
-                                        postOwnerId = item.post.userId,
-                                        isLiked = item.post.likes.contains(viewModel.currentUserId)
-                                    )
-                                },
-                                onDeleteClick = { viewModel.deletePost(item.post.postId) }
+                                onLikeClick = { viewModel.toggleLike(postWithUser.post.postId, postWithUser.post.userId, postWithUser.post.likes.contains(viewModel.currentUserId)) },
+                                onUsernameClick = { onNavigateToProfile(postWithUser.user.userId) },
+                                onCommentClick = { onNavigateToPostDetail(postWithUser.post.postId) },
+                                onDeleteClick = { viewModel.deletePost(postWithUser.post.postId) }
                             )
                         }
                     }
                 }
                 is FeedState.Empty -> {
-                     Box(modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp), contentAlignment = Alignment.Center) {
-                        Text(text = state.message, textAlign = TextAlign.Center)
+                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(text = state.message)
                     }
                 }
                 is FeedState.Error -> {

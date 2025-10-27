@@ -7,7 +7,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.vietshare.ui.chat.AddMembersScreen
 import com.example.vietshare.ui.chat.ChatScreen
+import com.example.vietshare.ui.chat.GroupDetailsScreen
 import com.example.vietshare.ui.chatlist.ChatListScreen
 import com.example.vietshare.ui.chatlist.CreateGroupScreen
 import com.example.vietshare.ui.createpost.CreatePostScreen
@@ -33,8 +35,10 @@ object Routes {
     const val PROFILE = "profile/{userId}"
     const val POST_DETAIL = "post/{postId}"
     const val CHAT_LIST = "chat_list"
-    const val CREATE_GROUP = "create_group" // New Route
+    const val CREATE_GROUP = "create_group"
     const val CHAT_DETAIL = "chat/{roomId}"
+    const val GROUP_DETAILS = "group_details/{roomId}"
+    const val ADD_MEMBERS = "add_members/{roomId}"
     const val NOTIFICATION = "notification"
     const val FIND_FRIENDS = "find_friends"
     const val EDIT_PROFILE = "edit_profile"
@@ -43,6 +47,8 @@ object Routes {
     fun profile(userId: String) = "profile/$userId"
     fun postDetail(postId: String) = "post/$postId"
     fun chatDetail(roomId: String) = "chat/$roomId"
+    fun groupDetails(roomId: String) = "group_details/$roomId"
+    fun addMembers(roomId: String) = "add_members/$roomId"
     fun verifyOtp(email: String, pass: String, name: String, otp: String): String {
         val encodedEmail = URLEncoder.encode(email, StandardCharsets.UTF_8.toString())
         return "verify_otp/$encodedEmail/$pass/$name/$otp"
@@ -119,10 +125,10 @@ fun AppNavigation() {
         composable(Routes.CHAT_LIST) {
             ChatListScreen(
                 onNavigateToChat = { roomId -> navController.navigate(Routes.chatDetail(roomId)) },
-                onNavigateToCreateGroup = { navController.navigate(Routes.CREATE_GROUP) } // Add this
+                onNavigateToCreateGroup = { navController.navigate(Routes.CREATE_GROUP) }
             )
         }
-        composable(Routes.CREATE_GROUP) { // Add this composable
+        composable(Routes.CREATE_GROUP) {
             CreateGroupScreen(
                 onGroupCreated = { navController.popBackStack() }
             )
@@ -131,7 +137,27 @@ fun AppNavigation() {
             route = Routes.CHAT_DETAIL,
             arguments = listOf(navArgument("roomId") { type = NavType.StringType })
         ) {
-            ChatScreen()
+            ChatScreen(
+                onNavigateToGroupDetails = { roomId -> navController.navigate(Routes.groupDetails(roomId)) }
+            )
+        }
+        composable(
+            route = Routes.GROUP_DETAILS,
+            arguments = listOf(navArgument("roomId") { type = NavType.StringType })
+        ) {
+            GroupDetailsScreen(
+                onNavigateToProfile = { userId -> navController.navigate(Routes.profile(userId)) },
+                onNavigateToAddMembers = { roomId -> navController.navigate(Routes.addMembers(roomId)) },
+                onNavigateBack = { navController.popBackStack() } // Add this
+            )
+        }
+        composable(
+            route = Routes.ADD_MEMBERS,
+            arguments = listOf(navArgument("roomId") { type = NavType.StringType })
+        ) { 
+            AddMembersScreen(
+                onMembersAdded = { navController.popBackStack() }
+            )
         }
         composable(Routes.NOTIFICATION) {
             NotificationScreen(

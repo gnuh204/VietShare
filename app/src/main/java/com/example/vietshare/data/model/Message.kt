@@ -2,11 +2,17 @@ package com.example.vietshare.data.model
 
 import com.google.firebase.Timestamp
 
+enum class MessageType {
+    USER,
+    SYSTEM
+}
+
 data class Message(
     val messageId: String = "",
     val roomId: String = "",
-    val senderId: String = "",
-    val content: String? = null, // Can be null if it's an image message
-    val media: MediaInfo? = null, // Add this for image messages
+    val senderId: String? = null, // Can be null for system messages
+    val content: String? = null,
+    val media: MediaInfo? = null,
+    val type: String = MessageType.USER.name, // Add this
     val timestamp: Timestamp? = null
 )

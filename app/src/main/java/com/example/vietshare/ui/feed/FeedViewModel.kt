@@ -2,8 +2,10 @@ package com.example.vietshare.ui.feed
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.vietshare.data.model.User
 import com.example.vietshare.domain.model.PostWithUser
 import com.example.vietshare.domain.repository.AuthRepository
+import com.example.vietshare.domain.repository.ChatRepository
 import com.example.vietshare.domain.repository.NotificationRepository
 import com.example.vietshare.domain.repository.UserRepository
 import com.example.vietshare.domain.usecase.DeletePostUseCase
@@ -21,6 +23,7 @@ class FeedViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val authRepository: AuthRepository,
     private val notificationRepository: NotificationRepository,
+    private val chatRepository: ChatRepository,
     private val likePostUseCase: LikePostUseCase,
     private val unlikePostUseCase: UnlikePostUseCase,
     private val deletePostUseCase: DeletePostUseCase
@@ -31,13 +34,29 @@ class FeedViewModel @Inject constructor(
     private val _feedState = MutableStateFlow<FeedState>(FeedState.Loading)
     val feedState: StateFlow<FeedState> = _feedState
 
-    // State for the notification badge count
     private val _unreadNotificationCount = MutableStateFlow(0)
     val unreadNotificationCount: StateFlow<Int> = _unreadNotificationCount
+
+    private val _unreadChatCount = MutableStateFlow(0)
+    val unreadChatCount: StateFlow<Int> = _unreadChatCount
+    
+    private val _currentUser = MutableStateFlow<User?>(null)
+    val currentUser: StateFlow<User?> = _currentUser
 
     init {
         loadFeed()
         listenForUnreadNotifications()
+        listenForUnreadChats()
+        loadCurrentUser()
+    }
+
+    private fun loadCurrentUser(){
+        currentUserId ?: return
+        viewModelScope.launch {
+            userRepository.getUser(currentUserId).collect{
+                _currentUser.value = it
+            }
+        }
     }
 
     private fun listenForUnreadNotifications() {
@@ -45,6 +64,15 @@ class FeedViewModel @Inject constructor(
         viewModelScope.launch {
             notificationRepository.getUnreadNotificationCount(currentUserId).collect {
                 _unreadNotificationCount.value = it
+            }
+        }
+    }
+
+    private fun listenForUnreadChats() {
+        currentUserId ?: return
+        viewModelScope.launch {
+            chatRepository.getUnreadChatsCount(currentUserId).collect {
+                _unreadChatCount.value = it
             }
         }
     }

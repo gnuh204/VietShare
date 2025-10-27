@@ -60,6 +60,19 @@ class CreateGroupViewModel @Inject constructor(
     }
 
     fun createGroup(groupName: String) {
-        // TODO: Implement group creation logic
+        val currentUserId = authRepository.getCurrentUserId() ?: return
+        if (groupName.isBlank() || _uiState.value.selectedMembers.isEmpty()) return
+
+        _uiState.value = _uiState.value.copy(isLoading = true)
+
+        viewModelScope.launch {
+            try {
+                val memberIds = _uiState.value.selectedMembers.toList()
+                chatRepository.createGroupChat(groupName, memberIds, currentUserId).getOrThrow()
+                _uiState.value = _uiState.value.copy(isLoading = false, groupCreated = true)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isLoading = false, error = e.message)
+            }
+        }
     }
 }

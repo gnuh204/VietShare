@@ -53,7 +53,7 @@ fun CreateGroupScreen(
             Text("Select Members", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (uiState.isLoading) {
+            if (uiState.isLoading && uiState.friends.isEmpty()) {
                 CircularProgressIndicator()
             } else if (uiState.friends.isEmpty()){
                 Text("You are not following anyone yet.")
@@ -72,11 +72,15 @@ fun CreateGroupScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             Button(
-                onClick = { /* TODO: viewModel.createGroup(groupName) */ },
+                onClick = { viewModel.createGroup(groupName) },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = groupName.isNotBlank() && uiState.selectedMembers.isNotEmpty()
+                enabled = groupName.isNotBlank() && uiState.selectedMembers.isNotEmpty() && !uiState.isLoading
             ) {
-                Text("Create Group")
+                if(uiState.isLoading){
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                } else {
+                    Text("Create Group")
+                }
             }
         }
     }
